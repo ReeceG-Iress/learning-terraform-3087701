@@ -33,18 +33,6 @@ module "blog_vpc" {
   }
 }
 
-resource "aws_instance" "blog" {
-  ami                     = data.aws_ami.app_ami.id
-  instance_type           = var.instance_type
-  vpc_security_group_ids  = [module.blog_sg.security_group_id]
-
-  subnet_id = module.blog_vpc.public_subnets[0]
-
-  tags = {
-    Name = "LearningTerraform"
-  }
-}
-
 module "blog_sg" {
   source = "terraform-aws-modules/security-group/aws"
   version = "~> 4.13.0"
@@ -96,4 +84,35 @@ resource "aws_lb_target_group_attachment" "blog" {
   target_group_arn = aws_lb_target_group.blog.arn
   target_id        = aws_instance.blog.id
   port             = 80
+}
+
+module "asg" {
+  source = "terraform-aws-modules/autoscaling/aws"
+  version = "~> 9.0.2"
+
+  name                 = "blog-asg"
+  min_size             = 1
+  max_size             = 2
+  desired_capacity     = 1
+
+  vpc_zone_identifier  = module.blog_vpc.public_subnets
+  
+  launch_template_name  = "blog"
+  security_groups       = [module.blog_sg.security_group_id]
+  instance_type         = var.instance_type
+  image_id              = data.aws_ami.app_ami.id
+
+  traffic_source_attachments = {
+    alb = {
+      target_group_arn = aws_lb_target_group.blog.arn
+    }
+  }
+
+  tags = [
+    {
+      key                 = "Environment"
+      value               = "dev"
+      propagate_at_launch = true
+    }
+  ]
 }
