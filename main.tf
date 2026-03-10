@@ -3,7 +3,7 @@ data "aws_ami" "app_ami" {
 
   filter {
     name   = "name"
-    values = ["bitnami-tomcat-*-x86_64-hvm-ebs-nami"]
+    values = [var.ami_filter.name]
   }
 
   filter {
@@ -11,25 +11,25 @@ data "aws_ami" "app_ami" {
     values = ["hvm"]
   }
 
-  owners = ["979382823631"] # Bitnami
+  owners = [var.ami_filter.owner]
 }
 
 module "blog_vpc" {
   source = "terraform-aws-modules/vpc/aws"
 
-  name = "dev-vpc"
-  cidr = "10.0.0.0/16"
+  name = "${var.environment.name}-vpc"
+  cidr = "${var.environment.network_prefix}.0.0/16"
 
   azs             = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
-  private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
-  public_subnets  = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
+  private_subnets = ["${var.environment.network_prefix}.1.0/24", "${var.environment.network_prefix}.2.0/24", "${var.environment.network_prefix}.3.0/24"]
+  public_subnets  = ["${var.environment.network_prefix}.101.0/24", "${var.environment.network_prefix}.102.0/24", "${var.environment.network_prefix}.103.0/24"]
 
   enable_nat_gateway = true
   enable_vpn_gateway = true
 
   tags = {
     Terraform = "true"
-    Environment = "dev"
+    Environment = var.environment.name
   }
 }
 
@@ -69,7 +69,7 @@ module "blog_alb" {
   }
 
   tags = {
-      Environment = "dev"
+      Environment = var.environment.name
   }
 }
 
@@ -85,9 +85,9 @@ module "asg" {
   version = "~> 9.0.2"
 
   name                 = "blog-asg"
-  min_size             = 1
-  max_size             = 2
-  desired_capacity     = 1
+  min_size             = var.asg_settings.min_size
+  max_size             = var.asg_settings.max_size
+  desired_capacity     = var.asg_settings.desired_capacity
 
   vpc_zone_identifier  = module.blog_vpc.public_subnets
   
@@ -105,7 +105,7 @@ module "asg" {
   tags = [
     {
       key                 = "Environment"
-      value               = "dev"
+      value               = var.environment.name
       propagate_at_launch = true
     }
   ]
