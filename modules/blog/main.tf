@@ -80,7 +80,7 @@ resource "aws_lb_target_group" "blog" {
   vpc_id   = module.blog_vpc.vpc_id
 }
 
-module "asg" {
+module "blog_asg" {
   source = "terraform-aws-modules/autoscaling/aws"
   version = "~> 9.0.2"
 
